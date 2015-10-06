@@ -6,7 +6,6 @@ import java.util.Stack;
 public class Computer {
 	private Display display;
 	private Keyboard keyboard;
-	private long time;
 	private Memory ram;
 	private Random rand;
 	private Register i;
@@ -232,7 +231,7 @@ public class Computer {
 	private void opcode_8XY6(Register x) {
 		short value = x.getValue();
 		value = (short) (value >> 1);
-		registers[0xF].setValue((short) (value & 1));
+		registers[0xF].setValue((short) (value & 0xFF));
 	}
 
 	/**
@@ -300,16 +299,19 @@ public class Computer {
 
 	/**
 	 * Sets VX to the result of a bitwise and (&) operation on a random number
+	 * and val
 	 * 
 	 * @param x
 	 *            Register VX
+	 * @param val
+	 *            The value to be (&) with the random number
 	 */
-	private void opcode_CXNN(Register x) {
-		short value = (short) (x.getValue() & rand.nextInt(256));
+	private void opcode_CXNN(Register x, short val) {
+		short value = (short) (val & rand.nextInt(256));
 		x.setValue(value);
 	}
 
-	private void opcode_DXYN() {
+	private void opcode_DXYN(Register x, Register y, short value) {
 		// Sprites stored in memory at location in index register (I), 8bits
 		// wide. Wraps around the screen. If when drawn, clears a pixel,
 		// register VF is set to 1 otherwise it is zero. All drawing is XOR
@@ -421,6 +423,8 @@ public class Computer {
 
 	public void emulationCycle() {
 		evaluateOpcode();
+		sound.updateTimer();
+		delay.updateTimer();
 		programCounter++;
 	}
 
@@ -433,13 +437,175 @@ public class Computer {
 	}
 
 	private void evaluateOpcode(short opcode) {
-		// (value & 0xFF) >> 7)
-		// MSB
-		switch (opcode) {
-
+		Register x, y;
+		short value;
+		switch ((opcode & 0xf000) >> 8) {
+			case 0x0000:
+				execute0NNNOpcodes(opcode);
+				break;
+			case 0x1000:
+				opcode_1NNN(new Address((short) (opcode & 0x0FFF)));
+				break;
+			case 0x2000:
+				opcode_2NNN(new Address((short) (opcode & 0x0FFF)));
+				break;
+			case 0x3000:
+				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
+				value = (short) (opcode & 0xff);
+				opcode_3XNN(x, value);
+				break;
+			case 0x4000:
+				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
+				value = (short) (opcode & 0xff);
+				opcode_4XNN(x, value);
+				break;
+			case 0x5000:
+				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
+				y = getRegister((byte) ((opcode & 0x00f0) >> 4));
+				opcode_5XY0(x, y);
+				break;
+			case 0x6000:
+				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
+				value = (short) (opcode & 0xff);
+				opcode_6XNN(x, value);
+				break;
+			case 0x7000:
+				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
+				value = (short) (opcode & 0xff);
+				opcode_7XNN(x, value);
+				break;
+			case 0x8000:
+				execute8XYNOpcodes(opcode);
+				break;
+			case 0x9000:
+				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
+				y = getRegister((byte) ((opcode & 0x00f0) >> 4));
+				opcode_9XY0(x, y);
+				break;
+			case 0xA000:
+				value = (short) (opcode & 0xFFF);
+				opcode_ANNN(new Address(value));
+				break;
+			case 0xB000:
+				value = (short) (opcode & 0xFFF);
+				opcode_BNNN(new Address(value));
+				break;
+			case 0xC000:
+				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
+				value = (short) (opcode & 0xFF);
+				opcode_CXNN(x, value);
+			case 0xD000:
+				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
+				y = getRegister((byte) ((opcode & 0x00f0) >> 4));
+				value = (short) (opcode & 0xf);
+				opcode_DXYN(x, y, value);
+				break;
+			case 0xE000:
+				switch (opcode & 0xff) {
+					case 0x9E:
+						opcode_EX9E();
+						break;
+					case 0xA1:
+						opcode_EXA1();
+						break;
+					default:
+						System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode));
+				}
+				break;
+			case 0xF000:
+				executeFXNNOpcodes(opcode);
+				break;
 			default:
 				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode));
 		}
+	}
+
+	private void execute0NNNOpcodes(short opcode) {
+		switch (opcode & 0xFF) {
+			case 0x00E0:
+				opcode_00E0();
+				break;
+			case 0x00EE:
+				opcode_00EE();
+				break;
+			default:
+				opcode_0NNN(new Address((short) (opcode & 0x0FFF)));
+		}
+	}
+
+	private void execute8XYNOpcodes(short opcode) {
+		Register x = getRegister((byte) ((opcode & 0x0f00) >> 8));
+		Register y = getRegister((byte) ((opcode & 0x00f0) >> 4));
+		switch (opcode & 0xF) {
+			case 0x0:
+				opcode_8XY0(x, y);
+				break;
+			case 0x1:
+				opcode_8XY1(x, y);
+				break;
+			case 0x2:
+				opcode_8XY2(x, y);
+				break;
+			case 0x3:
+				opcode_8XY3(x, y);
+				break;
+			case 0x4:
+				opcode_8XY4(x, y);
+				break;
+			case 0x5:
+				opcode_8XY5(x, y);
+				break;
+			case 0x6:
+				opcode_8XY6(x);
+				break;
+			case 0x7:
+				opcode_8XY7(x, y);
+				break;
+			case 0xE:
+				opcode_8XYE(x);
+				break;
+			default:
+				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode));
+		}
+	}
+
+	private void executeFXNNOpcodes(short opcode) {
+		Register x = getRegister((byte) ((opcode & 0x0f00) >> 8));
+		switch (opcode & 0xFF) {
+			case 0x07:
+				opcode_FX07(x);
+				break;
+			case 0x0A:
+				opcode_FX0A();
+				break;
+			case 0x15:
+				opcode_FX15(x);
+				break;
+			case 0x18:
+				opcode_FX18(x);
+				break;
+			case 0x1E:
+				opcode_FX1E(x);
+				break;
+			case 0x29:
+				opcode_FX29();
+				break;
+			case 0x33:
+				opcode_FX33();
+				break;
+			case 0x55:
+				opcode_FX55(x);
+				break;
+			case 0x65:
+				opcode_FX65(x);
+				break;
+			default:
+				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode));
+		}
+	}
+
+	public Register getRegister(byte identifier) {
+		return registers[identifier];
 	}
 
 }

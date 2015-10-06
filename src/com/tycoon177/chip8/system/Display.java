@@ -1,7 +1,7 @@
 package com.tycoon177.chip8.system;
 
 public class Display {
-	//Monochrome screen can be represented by booleans.
+	// Monochrome screen can be represented by booleans.
 	private boolean[] screen;
 	private int width, height;
 
@@ -16,7 +16,17 @@ public class Display {
 			screen[i] = false;
 		}
 	}
-	
-	
+
+	public int getWidth() {
+		return width;
+	}
+
+	public int getHeight() {
+		return height;
+	}
+
+	public boolean[] getScreen() {
+		return screen;
+	}
 
 }
