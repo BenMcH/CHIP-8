@@ -3,9 +3,10 @@ package com.tycoon177.chip8.system;
 import java.util.Random;
 import java.util.Stack;
 
-public class Computer {
+public class Computer implements Runnable {
 	private Display display;
 	private Keyboard keyboard;
+	private long time;
 	private Memory ram;
 	private Random rand;
 	private Register i;
@@ -31,10 +32,6 @@ public class Computer {
 		sound = new Timer();
 		programCounter = 0x200;// Program execution starts at 0x200
 		rand = new Random();
-	}
-
-	private void opcode_0NNN(Address address) {
-		// Calls RCA 1802 program at address NNN. Not necessary for most ROMs.
 	}
 
 	/**
@@ -82,7 +79,7 @@ public class Computer {
 	 */
 	private void opcode_3XNN(Register x, short value) {
 		if (x.getValue() == value) {
-			programCounter++;
+			programCounter += 2;
 		}
 	}
 
@@ -97,7 +94,7 @@ public class Computer {
 	 */
 	private void opcode_4XNN(Register x, short value) {
 		if (x.getValue() != value) {
-			programCounter++;
+			programCounter += 2;
 		}
 	}
 
@@ -112,7 +109,7 @@ public class Computer {
 	 */
 	private void opcode_5XY0(Register x, Register y) {
 		if (x.getValue() == y.getValue()) {
-			programCounter++;
+			programCounter += 2;
 		}
 	}
 
@@ -273,7 +270,7 @@ public class Computer {
 	 */
 	private void opcode_9XY0(Register x, Register y) {
 		if (x.getValue() == y.getValue()) {
-			programCounter++;
+			programCounter += 2;
 		}
 	}
 
@@ -311,22 +308,56 @@ public class Computer {
 		x.setValue(value);
 	}
 
-	private void opcode_DXYN(Register x, Register y, short value) {
-		// Sprites stored in memory at location in index register (I), 8bits
-		// wide. Wraps around the screen. If when drawn, clears a pixel,
-		// register VF is set to 1 otherwise it is zero. All drawing is XOR
-		// drawing (i.e. it toggles the screen pixels). Sprites are drawn
-		// starting at position VX, VY. N is the number of 8bit rows that need
-		// to be drawn. If N is greater than 1, second line continues at
-		// position VX, VY+1, and so on.
+	/**
+	 * Display n-byte sprite starting at memory location I at (Vx, Vy), set VF =
+	 * collision.
+	 * 
+	 * @param x
+	 *            Vx
+	 * @param y
+	 *            Vy
+	 * @param height
+	 *            Height of sprite
+	 */
+	private void opcode_DXYN(Register x, Register y, short height) {
+		int xLoc = x.getValue();
+		int yLoc = y.getValue();
+		boolean turnedOff = false;
+		byte value;
+		Address address = new Address(i.getValue());
+		registers[0xF].setValue((short) 0);
+		for (int i = 0; i < height; i++) {
+			value = ram.getMemory(address);
+			address.addToAddress(1);
+			turnedOff |= display.draw(xLoc, yLoc, value);
+		}
+		if (turnedOff) {
+			registers[0xF].setValue(1);
+		}
 	}
 
-	private void opcode_EX9E() {
-		// Skips the next instruction if the key stored in VX is pressed.
+	/**
+	 * Skips the next instruction if the key stored in VX is pressed.
+	 * 
+	 * @param x
+	 *            The register holding the value of the key
+	 */
+	private void opcode_EX9E(Register x) {
+		if (keyboard.getKeyPressed(x.getValue())) {
+			programCounter += 2;
+		}
 	}
 
-	private void opcode_EXA1() {
-		// Skips the next instruction if the key stored in VX isn't pressed.
+	/**
+	 * Skips the next instruction if the key stored in VX isn't pressed.
+	 * 
+	 * @param x
+	 *            The register with the key value
+	 */
+	private void opcode_EXA1(Register x) {
+		if (!keyboard.getKeyPressed(x.getValue())) {
+			programCounter += 2;
+		}
 	}
 
 	/**
@@ -339,8 +370,16 @@ public class Computer {
 		x.setValue(delay.getValue());
 	}
 
-	private void opcode_FX0A() {
-		// A key press is awaited, and then stored in VX.
+	/**
+	 * A key press is awaited, and then stored in VX.
+	 * 
+	 * @param x
+	 *            Register VX
+	 */
+	private void opcode_FX0A(Register x) {
+		short value = (short) keyboard.waitForKeyPress();
+		x.setValue(value);
+		;
 	}
 
 	/**
@@ -374,18 +413,39 @@ public class Computer {
 		i.setValue(value);
 	}
 
-	private void opcode_FX29() {
-		// Sets I to the location of the sprite for the character in VX.
-		// Characters 0-F (in hexadecimal) are represented by a 4x5 font.
+	/**
+	 * Sets the pointer to the location of the sprite cooresponding to the hex
+	 * code held in VX
+	 * 
+	 * @param x
+	 *            VX
+	 */
+	private void opcode_FX29(Register x) {
+		short val = x.getValue();
+		if (val < 0 || val > 0xF) {
+			// Handle OOB requests
+		}
+		i.setValue(val * 5); // 5 entries for the rows and an empty.
 	}
 
-	private void opcode_FX33() {
-		// Stores the Binary-coded decimal representation of VX, with the most
-		// significant of three digits at the address in I, the middle digit at
-		// I plus 1, and the least significant digit at I plus 2. (In other
-		// words, take the decimal representation of VX, place the hundreds
-		// digit in memory at location in I, the tens digit at location I+1, and
-		// the ones digit at location I+2.)
+	/**
+	 * Stores the value in the register VX as each individual value. (Hundreds,
+	 * tens, and ones)
+	 * 
+	 * @param x
+	 *            Register VX
+	 */
+	private void opcode_FX33(Register x) {
+		Address addr = new Address(i.getValue());
+		short value = x.getValue();
+		byte hundreds = (byte) (value / 100);
+		byte tens = (byte) ((value - hundreds) / 10);
+		byte ones = (byte) ((value - hundreds - tens));
+		ram.setMemory(addr, hundreds);
+		addr.addToAddress(1);
+		ram.setMemory(addr, tens);
+		addr.addToAddress(1);
+		ram.setMemory(addr, ones);
 	}
 
 	/**
@@ -425,94 +485,98 @@ public class Computer {
 		evaluateOpcode();
 		sound.updateTimer();
 		delay.updateTimer();
-		programCounter++;
+		programCounter += 2;
 	}
 
 	private void evaluateOpcode() {
 		Address loc = new Address(programCounter);
 		short opcode = ram.getMemory(loc);
 		loc.addToAddress(1);
-		opcode = (short) ((opcode << 8) | ram.getMemory(loc)); // Full opcode
+		opcode = (byte) ((opcode << 2) | ram.getMemory(loc)); // Full opcode
 		evaluateOpcode(opcode);
+		System.out.println("Evaluated Opcode: 0x" + Integer.toHexString(opcode));
+		System.out.println(opcode);
 	}
 
-	private void evaluateOpcode(short opcode) {
+	public void evaluateOpcode(short opcode) {
+		opcode &= 0xffff;
 		Register x, y;
 		short value;
-		switch ((opcode & 0xf000) >> 8) {
-			case 0x0000:
+		switch ((opcode & 0xf000)>>12) {
+			case 0x0:
 				execute0NNNOpcodes(opcode);
 				break;
-			case 0x1000:
+			case 0x1:
 				opcode_1NNN(new Address((short) (opcode & 0x0FFF)));
 				break;
-			case 0x2000:
+			case 0x2:
 				opcode_2NNN(new Address((short) (opcode & 0x0FFF)));
 				break;
-			case 0x3000:
+			case 0x3:
 				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 				value = (short) (opcode & 0xff);
 				opcode_3XNN(x, value);
 				break;
-			case 0x4000:
+			case 0x4:
 				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 				value = (short) (opcode & 0xff);
 				opcode_4XNN(x, value);
 				break;
-			case 0x5000:
+			case 0x5:
 				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 				y = getRegister((byte) ((opcode & 0x00f0) >> 4));
 				opcode_5XY0(x, y);
 				break;
-			case 0x6000:
+			case 0x6:
 				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 				value = (short) (opcode & 0xff);
 				opcode_6XNN(x, value);
 				break;
-			case 0x7000:
+			case 0x7:
 				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 				value = (short) (opcode & 0xff);
 				opcode_7XNN(x, value);
 				break;
-			case 0x8000:
+			case 0x8:
 				execute8XYNOpcodes(opcode);
 				break;
-			case 0x9000:
+			case 0x9:
 				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 				y = getRegister((byte) ((opcode & 0x00f0) >> 4));
 				opcode_9XY0(x, y);
 				break;
-			case 0xA000:
+			case 0xA:
 				value = (short) (opcode & 0xFFF);
 				opcode_ANNN(new Address(value));
 				break;
-			case 0xB000:
+			case 0xB:
 				value = (short) (opcode & 0xFFF);
 				opcode_BNNN(new Address(value));
 				break;
-			case 0xC000:
+			case 0xC:
 				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 				value = (short) (opcode & 0xFF);
 				opcode_CXNN(x, value);
-			case 0xD000:
+			case 0xD:
 				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 				y = getRegister((byte) ((opcode & 0x00f0) >> 4));
 				value = (short) (opcode & 0xf);
 				opcode_DXYN(x, y, value);
 				break;
-			case 0xE000:
+			case 0xE:
+				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 				switch (opcode & 0xff) {
 					case 0x9E:
-						opcode_EX9E();
+						opcode_EX9E(x);
 						break;
 					case 0xA1:
-						opcode_EXA1();
+						opcode_EXA1(x);
 						break;
 					default:
 						System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode));
 				}
 				break;
-			case 0xF000:
+			case 0xF:
 				executeFXNNOpcodes(opcode);
 				break;
 			default:
@@ -529,7 +593,7 @@ public class Computer {
 				opcode_00EE();
 				break;
 			default:
-				opcode_0NNN(new Address((short) (opcode & 0x0FFF)));
+				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode));
 		}
 	}
 
@@ -576,7 +640,7 @@ public class Computer {
 				opcode_FX07(x);
 				break;
 			case 0x0A:
-				opcode_FX0A();
+				opcode_FX0A(x);
 				break;
 			case 0x15:
 				opcode_FX15(x);
@@ -588,10 +652,10 @@ public class Computer {
 				opcode_FX1E(x);
 				break;
 			case 0x29:
-				opcode_FX29();
+				opcode_FX29(x);
 				break;
 			case 0x33:
-				opcode_FX33();
+				opcode_FX33(x);
 				break;
 			case 0x55:
 				opcode_FX55(x);
@@ -606,6 +670,27 @@ public class Computer {
 
 	public Register getRegister(byte identifier) {
 		return registers[identifier];
+	}
+
+	public void loadRom(Rom rom) {
+		int[] data = rom.getRom();
+		Address address = new Address((short) 0x200);
+		for (int i = 0; i < data.length; i++) {
+			ram.setMemory(address, (byte)data[i]);
+			address.addToAddress(1);
+		}
+
+	}
+
+	@Override
+	public void run() {
+		for (;programCounter < 4096;) {
+			time = System.currentTimeMillis();
+			emulationCycle();
+			while (System.currentTimeMillis() - time < 1000.0 / 60.0)
+				;
+		}
+
 	}
 
 }
