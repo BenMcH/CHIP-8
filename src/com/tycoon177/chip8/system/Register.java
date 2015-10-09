@@ -2,13 +2,14 @@ package com.tycoon177.chip8.system;
 
 public class Register {
 	private int numBytes;
-	private short value;
+	private int value;
+	private String name;
 
 	/**
 	 * Creates a standard 1 byte register.
 	 */
-	public Register() {
-		this.numBytes = 1;
+	public Register(String name) {
+		this(1, name);
 	}
 
 	/**
@@ -20,7 +21,8 @@ public class Register {
 	 *             Thrown when trying to give more bytes of memory to a
 	 *             register.
 	 */
-	public Register(int numOfBytes) throws IllegalArgumentException {
+	public Register(int numOfBytes, String name) throws IllegalArgumentException {
+		this.name = name;
 		this.numBytes = numOfBytes;
 		if (numOfBytes != 1 && numOfBytes != 2) {
 			throw new IllegalArgumentException("The registers may only be 1 or 2 bytes.");
@@ -32,26 +34,13 @@ public class Register {
 	 * 
 	 * @return The value in the register.
 	 */
-	public short getValue() {
+	public int getValue() {
 		if (numBytes == 1) {
-			return (byte) value;
+			return value & 0xFF;
 		}
-		return value;
+		return value & 0xFFFF;
 	}
 
-	/**
-	 * Sets the value within the register
-	 * 
-	 * @param i
-	 *            Value to be set
-	 */
-	public void setValue(short val) {
-		int num = 256;
-		if (numBytes == 2) {
-			num *= num;
-		}
-		value = (short) (val & num);
-	}
 
 	/**
 	 * Sets the value within the register (Will be cast to short)
@@ -59,8 +48,13 @@ public class Register {
 	 * @param i
 	 *            Value to be set
 	 */
-	public void setValueInt(int i) {
-		setValue((short) i);
+	public void setValue(int i) {
+		this.value = i & 0xFFFF;
+	}
+	
+	@Override
+	public String toString(){
+		return name + ":" + value;
 	}
 
 }

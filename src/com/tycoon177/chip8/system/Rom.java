@@ -21,6 +21,7 @@ public class Rom {
 		romData = new int[length];
 		while (input.available() > 0) {
 			if (index >= romData.length) {
+				input.close();
 				throw new IndexOutOfBoundsException("Not enough space allocated for rom data");
 			}
 			romData[index++] = input.read();

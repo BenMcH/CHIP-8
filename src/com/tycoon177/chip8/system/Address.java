@@ -1,14 +1,14 @@
 package com.tycoon177.chip8.system;
 
 public class Address {
-	private short address;
+	private int address;
 
 	/**
 	 * Creates an address object
-	 * @param address the address location
+	 * @param i the address location
 	 */
-	public Address(short address) {
-		this.address = address;
+	public Address(int i) {
+		this.address = i;
 	}
 
 	/**
@@ -24,7 +24,7 @@ public class Address {
 	 * Gets the address
 	 * @return The address
 	 */
-	public short getAddress() {
+	public int getAddress() {
 		return address;
 	}
 
@@ -34,5 +34,10 @@ public class Address {
 	 */
 	public void addToAddress(int amount) {
 		this.address += amount;
+	}
+	
+	@Override
+	public String toString(){
+		return "0x" + Integer.toHexString(address);
 	}
 }

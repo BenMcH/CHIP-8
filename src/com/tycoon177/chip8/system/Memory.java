@@ -58,7 +58,7 @@ public class Memory {
 		if (address.getAddress() < 0 || address.getAddress() >= memory.length) {
 			throw new IllegalArgumentException("Memory Out of Bounds!");
 		}
-		return memory[address.getAddress()];
+		return memory[address.getAddress()] & 0xff;
 	}
 
 	/**
@@ -67,7 +67,9 @@ public class Memory {
 	private void setupFonts() {
 		for (int i = 0; i <= 0xf; i++) {
 			for (int j = 0; j < 5; j++) {
-				memory[i * 5 + j] = (byte) fontList[i*5 + j]; //put fonts in with a space in between
+				memory[i * 5 + j] = (byte) fontList[i * 5 + j]; // put fonts in
+																// with a space
+																// in between
 			}
 		}
 	}

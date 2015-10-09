@@ -4,19 +4,24 @@ import java.io.IOException;
 import java.util.Scanner;
 import java.util.zip.DataFormatException;
 
-import com.tycoon177.chip8.ui.Screen;
+import javax.swing.SwingUtilities;
+
 import com.tycoon177.chip8.ui.Window;
 
 public class Test {
 
-	public static void main(String[] args){
+	public static void main(String[] args) {
 		Computer comp = new Computer();
 		Scanner in = new Scanner(System.in);
 		System.out.println("1 for IBM, 2 for input of opcodes");
-		Screen screen = new Screen(comp.getDisplay());
-		Window w = new Window(screen);
-		w.setSize(100, 100);
-		w.setVisible(true);
+	//	comp.getDisplay().fill(true);
+		SwingUtilities.invokeLater(new Runnable() {
+			@Override
+			public void run() {
+				Window w = new Window(comp.getDisplay());
+				w.setVisible(true);			
+			}
+		});
 		if (in.nextInt() == 1) {
 			Rom rom = null;
 			try {
@@ -28,8 +33,8 @@ public class Test {
 				System.out.println("Rom could not be found or read.");
 				e.printStackTrace();
 			}
-			//int[] romdata = rom.getRom();
-			
+			// int[] romdata = rom.getRom();
+
 			comp.loadRom(rom);
 			new Thread(comp).run();
 		} else {

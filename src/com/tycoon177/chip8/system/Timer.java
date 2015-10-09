@@ -1,7 +1,7 @@
 package com.tycoon177.chip8.system;
 
 public class Timer {
-	private short value;
+	private int value;
 	private long time;
 
 	public void updateTimer() {
@@ -13,11 +13,11 @@ public class Timer {
 		}
 	}
 
-	public short getValue() {
+	public int getValue() {
 		return value;
 	}
 
-	public void setTimer(short value) {
-		this.value = value;
+	public void setTimer(int i) {
+		this.value = i;
 	}
 }
