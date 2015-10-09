@@ -7,10 +7,10 @@ public class Register {
 	/**
 	 * Creates a standard 1 byte register.
 	 */
-	public Register(){
+	public Register() {
 		this.numBytes = 1;
 	}
-	
+
 	/**
 	 * Creates a register with either 1 or 2 bytes.
 	 * 
@@ -45,13 +45,12 @@ public class Register {
 	 * @param i
 	 *            Value to be set
 	 */
-	public void setValue(Short val) {
+	public void setValue(short val) {
+		int num = 256;
 		if (numBytes == 2) {
-			if (val > Byte.MAX_VALUE || val < Byte.MIN_VALUE) {
-				throw new IllegalArgumentException("Value out of bounds");
-			}
+			num *= num;
 		}
-		value = val;
+		value = (short) (val & num);
 	}
 
 	/**
@@ -60,7 +59,7 @@ public class Register {
 	 * @param i
 	 *            Value to be set
 	 */
-	public void setValue(int i) {
+	public void setValueInt(int i) {
 		setValue((short) i);
 	}
 

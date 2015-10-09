@@ -36,7 +36,7 @@ public class Display {
 	 * @param value The sprite
 	 * @return Whether or not any pixels were deactivated as result of drawing this sprite.
 	 */
-	public boolean draw(int xLoc, int yLoc, byte value) {
+	public boolean draw(int xLoc, int yLoc, int value) {
 		String val = String.format("%8s", Integer.toBinaryString(value)).replace(" ", "0");
 		boolean turnedOff = false;
 		for (int i = 0; i < val.length(); i++) {
@@ -49,6 +49,14 @@ public class Display {
 			}
 		}
 		return turnedOff;
+	}
+
+	public void setSize(int width, int height) {
+		this.width = width;
+		this.height = height;
+		boolean[] nScreen = new boolean[width*height];
+		System.arraycopy(screen, 0, nScreen, 0, Math.min(nScreen.length, screen.length));
+		screen = nScreen;
 	}
 
 }

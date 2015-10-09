@@ -14,6 +14,7 @@ public class Computer implements Runnable {
 	private short programCounter;
 	private Stack<Address> returnStack;
 	private Timer delay, sound;
+	private int romLength;
 
 	/**
 	 * Initializes the CHIP-8 System.
@@ -122,7 +123,7 @@ public class Computer implements Runnable {
 	 *            the value that is put into Register
 	 */
 	private void opcode_6XNN(Register x, short value) {
-		x.setValue(value);
+		x.setValueInt(value);
 	}
 
 	/**
@@ -135,7 +136,7 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_7XNN(Register x, short value) {
 		short val = (short) (x.getValue() + value);
-		x.setValue(val);
+		x.setValueInt(val);
 	}
 
 	/**
@@ -147,7 +148,7 @@ public class Computer implements Runnable {
 	 *            The register to get the value from
 	 */
 	private void opcode_8XY0(Register x, Register y) {
-		x.setValue(y.getValue());
+		x.setValueInt(y.getValue());
 	}
 
 	/**
@@ -159,7 +160,7 @@ public class Computer implements Runnable {
 	 *            Second Register
 	 */
 	private void opcode_8XY1(Register x, Register y) {
-		x.setValue((short) (x.getValue() | y.getValue()));
+		x.setValueInt((short) (x.getValue() | y.getValue()));
 	}
 
 	/**
@@ -171,7 +172,7 @@ public class Computer implements Runnable {
 	 *            Second register (VY)
 	 */
 	private void opcode_8XY2(Register x, Register y) {
-		x.setValue((short) (x.getValue() & y.getValue()));
+		x.setValueInt((short) (x.getValue() & y.getValue()));
 	}
 
 	/**
@@ -183,7 +184,7 @@ public class Computer implements Runnable {
 	 *            Second register (VY)
 	 */
 	private void opcode_8XY3(Register x, Register y) {
-		x.setValue((short) (x.getValue() ^ y.getValue()));
+		x.setValueInt((short) (x.getValue() ^ y.getValue()));
 	}
 
 	/**
@@ -196,10 +197,10 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_8XY4(Register x, Register y) {
 		int val = x.getValue() + y.getValue();
-		x.setValue((short) val);
+		short vf = (short) (val > 0xff ? 1 : 0);
+		x.setValueInt((short) val & 0x100); // & 256 for modulous
 		// Sets to 1 if there has been a carry
-		short vf = (short) (val == x.getValue() ? 0 : 1);
-		registers[0xF].setValue(vf);
+		registers[0xF].setValueInt(vf);
 	}
 
 	/**
@@ -211,11 +212,9 @@ public class Computer implements Runnable {
 	 *            Second register
 	 */
 	private void opcode_8XY5(Register x, Register y) {
+		registers[0xF].setValueInt(y.getValue() <= x.getValue() ? 0x1 : 0x0);
 		int val = x.getValue() - y.getValue();
-		x.setValue((short) val);
-		// Sets to 1 if there has been a carry
-		short vf = (short) (val == x.getValue() ? 0 : 1);
-		registers[0xF].setValue(vf);
+		x.setValueInt((short) val & 0x100);
 	}
 
 	/**
@@ -227,8 +226,8 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_8XY6(Register x) {
 		short value = x.getValue();
+		registers[0xF].setValueInt((short) (value & 0x1));
 		value = (short) (value >> 1);
-		registers[0xF].setValue((short) (value & 0xFF));
 	}
 
 	/**
@@ -242,10 +241,10 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_8XY7(Register x, Register y) {
 		int val = y.getValue() - x.getValue();
-		x.setValue((short) val);
+		x.setValueInt((short) val & 0xff);
 		// Sets to 1 if there has been a carry
-		short vf = (short) (val == x.getValue() ? 0 : 1);
-		registers[0xF].setValue(vf);
+		short vf = (short) (val < 0 ? 1 : 0);
+		registers[0xF].setValueInt(vf);
 	}
 
 	/**
@@ -256,8 +255,8 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_8XYE(Register x) {
 		short value = x.getValue();
+		registers[0xF].setValueInt((short) ((value & 0xFF) >> 7));
 		value = (short) (value << 1);
-		registers[0xF].setValue((short) ((value & 0xFF) >> 7));
 	}
 
 	/**
@@ -281,7 +280,7 @@ public class Computer implements Runnable {
 	 *            The address to set I as
 	 */
 	private void opcode_ANNN(Address address) {
-		i.setValue(address.getAddress());
+		i.setValueInt(address.getAddress());
 	}
 
 	/**
@@ -305,7 +304,7 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_CXNN(Register x, short val) {
 		short value = (short) (val & rand.nextInt(256));
-		x.setValue(value);
+		x.setValueInt(value);
 	}
 
 	/**
@@ -323,16 +322,16 @@ public class Computer implements Runnable {
 		int xLoc = x.getValue();
 		int yLoc = y.getValue();
 		boolean turnedOff = false;
-		byte value;
+		int value;
 		Address address = new Address(i.getValue());
-		registers[0xF].setValue((short) 0);
+		registers[0xF].setValueInt((short) 0);
 		for (int i = 0; i < height; i++) {
 			value = ram.getMemory(address);
 			address.addToAddress(1);
 			turnedOff |= display.draw(xLoc, yLoc, value);
 		}
 		if (turnedOff) {
-			registers[0xF].setValue(1);
+			registers[0xF].setValueInt(1);
 		}
 	}
 
@@ -367,7 +366,7 @@ public class Computer implements Runnable {
 	 *            The register, VX
 	 */
 	private void opcode_FX07(Register x) {
-		x.setValue(delay.getValue());
+		x.setValueInt(delay.getValue());
 	}
 
 	/**
@@ -378,7 +377,7 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_FX0A(Register x) {
 		short value = (short) keyboard.waitForKeyPress();
-		x.setValue(value);
+		x.setValueInt(value);
 		;
 	}
 
@@ -410,7 +409,7 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_FX1E(Register x) {
 		short value = (short) (i.getValue() + x.getValue());
-		i.setValue(value);
+		i.setValueInt(value);
 	}
 
 	/**
@@ -425,7 +424,7 @@ public class Computer implements Runnable {
 		if (val < 0 || val > 0xF) {
 			// Handle OOB requests
 		}
-		i.setValue(val * 5); // 5 entries for the rows and an empty.
+		i.setValueInt(val * 5); // 5 entries for the rows and an empty.
 	}
 
 	/**
@@ -473,10 +472,10 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_FX65(Register x) {
 		Address address = new Address(i.getValue());
-		short value;
+		int value;
 		for (int j = 0; j < registers.length && registers[j] != x; j++) {
 			value = ram.getMemory(address);
-			registers[j].setValue(value);
+			registers[j].setValueInt(value);
 			address.addToAddress((short) 0x1);
 		}
 	}
@@ -490,19 +489,20 @@ public class Computer implements Runnable {
 
 	private void evaluateOpcode() {
 		Address loc = new Address(programCounter);
-		short opcode = ram.getMemory(loc);
+		int opcode = ram.getMemory(loc);
 		loc.addToAddress(1);
-		opcode = (byte) ((opcode << 2) | ram.getMemory(loc)); // Full opcode
+		opcode = ((opcode << 8) | ram.getMemory(loc)); // Full opcode
+		System.out.println("Evaluating Opcode: 0x" + Integer.toHexString(opcode));
 		evaluateOpcode(opcode);
 		System.out.println("Evaluated Opcode: 0x" + Integer.toHexString(opcode));
 		System.out.println(opcode);
 	}
 
-	public void evaluateOpcode(short opcode) {
+	public void evaluateOpcode(int opcode) {
 		opcode &= 0xffff;
 		Register x, y;
 		short value;
-		switch ((opcode & 0xf000)>>12) {
+		switch ((opcode & 0xf000) >> 12) {
 			case 0x0:
 				execute0NNNOpcodes(opcode);
 				break;
@@ -584,7 +584,7 @@ public class Computer implements Runnable {
 		}
 	}
 
-	private void execute0NNNOpcodes(short opcode) {
+	private void execute0NNNOpcodes(int opcode) {
 		switch (opcode & 0xFF) {
 			case 0x00E0:
 				opcode_00E0();
@@ -597,7 +597,7 @@ public class Computer implements Runnable {
 		}
 	}
 
-	private void execute8XYNOpcodes(short opcode) {
+	private void execute8XYNOpcodes(int opcode) {
 		Register x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 		Register y = getRegister((byte) ((opcode & 0x00f0) >> 4));
 		switch (opcode & 0xF) {
@@ -633,8 +633,8 @@ public class Computer implements Runnable {
 		}
 	}
 
-	private void executeFXNNOpcodes(short opcode) {
-		Register x = getRegister((byte) ((opcode & 0x0f00) >> 8));
+	private void executeFXNNOpcodes(int opcode) {
+		Register x = getRegister((byte) ((opcode & 0x0f00) >> 16));
 		switch (opcode & 0xFF) {
 			case 0x07:
 				opcode_FX07(x);
@@ -676,7 +676,8 @@ public class Computer implements Runnable {
 		int[] data = rom.getRom();
 		Address address = new Address((short) 0x200);
 		for (int i = 0; i < data.length; i++) {
-			ram.setMemory(address, (byte)data[i]);
+			ram.setMemory(address, data[i]);
+			System.out.println(data[i] + " " + ram.getMemory(address));
 			address.addToAddress(1);
 		}
 
@@ -684,13 +685,17 @@ public class Computer implements Runnable {
 
 	@Override
 	public void run() {
-		for (;programCounter < 4096;) {
+		for (; programCounter < 4096;) {
 			time = System.currentTimeMillis();
 			emulationCycle();
 			while (System.currentTimeMillis() - time < 1000.0 / 60.0)
 				;
 		}
 
+	}
+
+	public Display getDisplay() {
+		return display;
 	}
 
 }

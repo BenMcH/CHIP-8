@@ -1,7 +1,7 @@
 package com.tycoon177.chip8.system;
 
 public class Memory {
-	private byte[] memory;
+	private int[] memory;
 
 	public static int[] fontList = { 0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
 			0x20, 0x60, 0x20, 0x20, 0x70, // 1
@@ -28,7 +28,7 @@ public class Memory {
 	 * 
 	 */
 	public Memory(int amount) {
-		memory = new byte[amount];
+		memory = new int[amount];
 		setupFonts();
 	}
 
@@ -37,14 +37,14 @@ public class Memory {
 	 * 
 	 * @param address
 	 *            The address for the memory to be set
-	 * @param value
+	 * @param data
 	 *            The value to set the memory to
 	 */
-	public void setMemory(Address address, byte value) {
+	public void setMemory(Address address, int data) {
 		if (address.getAddress() < 0 || address.getAddress() >= memory.length) {
 			throw new IllegalArgumentException("Memory Out of Bounds!");
 		}
-		memory[address.getAddress()] = value;
+		memory[address.getAddress()] = data;
 	}
 
 	/**
@@ -54,7 +54,7 @@ public class Memory {
 	 *            The address to read from
 	 * @return The memory at the specified address.
 	 */
-	public byte getMemory(Address address) {
+	public int getMemory(Address address) {
 		if (address.getAddress() < 0 || address.getAddress() >= memory.length) {
 			throw new IllegalArgumentException("Memory Out of Bounds!");
 		}

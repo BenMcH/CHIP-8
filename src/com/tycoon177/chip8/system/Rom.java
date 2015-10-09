@@ -4,11 +4,11 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.nio.file.Files;
 import java.util.zip.DataFormatException;
 
 public class Rom {
-	int[] romData;
+	private int[] romData;
+	private int length;
 
 	public Rom(String fileName) throws DataFormatException, IOException {
 		File file = new File(fileName);
@@ -17,13 +17,22 @@ public class Rom {
 		}
 		FileInputStream input = new FileInputStream(file);
 		int index = 0;
-		romData = new int[4096 - 0x200];
+		length = (int) file.length();
+		romData = new int[length];
 		while (input.available() > 0) {
+			if (index >= romData.length) {
+				throw new IndexOutOfBoundsException("Not enough space allocated for rom data");
+			}
 			romData[index++] = input.read();
 		}
+		input.close();
 	}
 
 	public int[] getRom() {
 		return romData;
+	}
+
+	public int getLength() {
+		return length;
 	}
 }
