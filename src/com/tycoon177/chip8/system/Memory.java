@@ -1,24 +1,10 @@
 package com.tycoon177.chip8.system;
 
+import java.io.FileInputStream;
+import java.io.IOException;
+
 public class Memory {
 	private int[] memory;
-
-	public static int[] fontList = { 0xF0, 0x90, 0x90, 0x90, 0xF0, // 0
-			0x20, 0x60, 0x20, 0x20, 0x70, // 1
-			0xF0, 0x10, 0xF0, 0x80, 0xF0, // 2
-			0xF0, 0x10, 0xF0, 0x10, 0xF0, // 3
-			0x90, 0x90, 0xF0, 0x10, 0x10, // 4
-			0xF0, 0x80, 0xF0, 0x10, 0xF0, // 5
-			0xF0, 0x80, 0xF0, 0x90, 0xF0, // 6
-			0xF0, 0x10, 0x20, 0x40, 0x40, // 7
-			0xF0, 0x90, 0xF0, 0x90, 0xF0, // 8
-			0xF0, 0x90, 0xF0, 0x10, 0xF0, // 9
-			0xF0, 0x90, 0xF0, 0x90, 0x90, // A
-			0xE0, 0x90, 0xE0, 0x90, 0xE0, // B
-			0xF0, 0x80, 0x80, 0x80, 0xF0, // C
-			0xE0, 0x90, 0x90, 0x90, 0xE0, // D
-			0xF0, 0x80, 0xF0, 0x80, 0xF0, // E
-			0xF0, 0x80, 0xF0, 0x80, 0x80 };// F
 
 	/**
 	 * Allocates the correct amount of memory for the system.
@@ -29,7 +15,11 @@ public class Memory {
 	 */
 	public Memory(int amount) {
 		memory = new int[amount];
-		setupFonts();
+		try {
+			loadSystemFromFile("chip8.rom");
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	/**
@@ -61,16 +51,35 @@ public class Memory {
 		return memory[address.getAddress()] & 0xff;
 	}
 
+	public int[] getMemory() {
+		return memory;
+	}
+
 	/**
-	 * Inserts the fonts into memory.
+	 * Gets the rom file and loads it into memory.
+	 * 
+	 * @param file
+	 *            The file name that is the rom.
+	 * @throws IOException
+	 *             Thrown when the file cannot be found or read.
 	 */
-	private void setupFonts() {
-		for (int i = 0; i <= 0xf; i++) {
-			for (int j = 0; j < 5; j++) {
-				memory[i * 5 + j] = (byte) fontList[i * 5 + j]; // put fonts in
-																// with a space
-																// in between
-			}
+	private void loadSystemFromFile(String file) throws IOException {
+		FileInputStream input = new FileInputStream(file);
+		byte[] rom = new byte[0x200];
+		input.read(rom);
+		input.close();
+		for (int i = 0; i < rom.length; i++) {
+			memory[i] = rom[i];
+		}
+	}
+
+	public void clearMemory() {
+		for(int i = 0; i < memory.length; i++){
+			memory[i] = 0;
+		}
+		try {
+			loadSystemFromFile("chip8.rom");
+		} catch (IOException e) {
 		}
 	}
 }

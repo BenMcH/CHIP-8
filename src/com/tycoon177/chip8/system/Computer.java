@@ -1,7 +1,12 @@
 package com.tycoon177.chip8.system;
 
+import java.io.File;
+import java.io.IOException;
 import java.util.Random;
 import java.util.Stack;
+import java.util.zip.DataFormatException;
+
+import javax.swing.JFileChooser;
 
 public class Computer implements Runnable {
 	private Display display;
@@ -13,9 +18,11 @@ public class Computer implements Runnable {
 	private Register[] registers;
 	private Stack<Address> returnStack;
 	private Timer delay, sound;
+	private Thread program;
 	private int programCounter;
 	private int startPlace;
 	private int romLength;
+	private boolean keepRunning;
 
 	/**
 	 * Initializes the CHIP-8 System.
@@ -32,9 +39,26 @@ public class Computer implements Runnable {
 		returnStack = new Stack<>();
 		delay = new Timer();
 		sound = new Timer();
+		rand = new Random();
+		resetComputerState();
+	}
+
+	private void resetComputerState() {
 		programCounter = 0x200;// Program execution starts at 0x200
 		startPlace = 0x200;
-		rand = new Random();
+		delay.setTimer(0);
+		sound.setTimer(0);
+		for (Register x : registers) {
+			x.setValue(0);
+		}
+		i.setValue(0);
+		while (!returnStack.empty()) {
+			returnStack.pop();
+		}
+		keyboard.reset();
+		display.cls();
+		ram.clearMemory();
+
 	}
 
 	/**
@@ -42,13 +66,14 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_00E0() {
 		display.cls();
+
 	}
 
 	/**
 	 * Acts as RET in asm. Returning to the last item on the stack.
 	 */
 	private void opcode_00EE() {
-		programCounter = returnStack.pop().getAddress();
+		programCounter = returnStack.pop().getAddress() - 2;
 	}
 
 	/**
@@ -58,7 +83,7 @@ public class Computer implements Runnable {
 	 *            The address to jump to.
 	 */
 	private void opcode_1NNN(Address address) {
-		this.programCounter = address.getAddress();
+		this.programCounter = address.getAddress() - 2;
 	}
 
 	/**
@@ -80,7 +105,7 @@ public class Computer implements Runnable {
 	 * @param value
 	 *            The value to be checked
 	 */
-	private void opcode_3XNN(Register x, short value) {
+	private void opcode_3XNN(Register x, int value) {
 		if (x.getValue() == value) {
 			programCounter += 2;
 		}
@@ -95,7 +120,7 @@ public class Computer implements Runnable {
 	 * @param value
 	 *            The value to be checked
 	 */
-	private void opcode_4XNN(Register x, short value) {
+	private void opcode_4XNN(Register x, int value) {
 		if (x.getValue() != value) {
 			programCounter += 2;
 		}
@@ -124,7 +149,7 @@ public class Computer implements Runnable {
 	 * @param value
 	 *            the value that is put into Register
 	 */
-	private void opcode_6XNN(Register x, short value) {
+	private void opcode_6XNN(Register x, int value) {
 		x.setValue(value);
 	}
 
@@ -136,8 +161,8 @@ public class Computer implements Runnable {
 	 * @param value
 	 *            the value to add to the register
 	 */
-	private void opcode_7XNN(Register x, short value) {
-		short val = (short) (x.getValue() + value);
+	private void opcode_7XNN(Register x, int value) {
+		int val = (x.getValue() + value);
 		x.setValue(val);
 	}
 
@@ -162,7 +187,7 @@ public class Computer implements Runnable {
 	 *            Second Register
 	 */
 	private void opcode_8XY1(Register x, Register y) {
-		x.setValue((short) (x.getValue() | y.getValue()));
+		x.setValue(x.getValue() | y.getValue());
 	}
 
 	/**
@@ -174,7 +199,7 @@ public class Computer implements Runnable {
 	 *            Second register (VY)
 	 */
 	private void opcode_8XY2(Register x, Register y) {
-		x.setValue((short) (x.getValue() & y.getValue()));
+		x.setValue(x.getValue() & y.getValue());
 	}
 
 	/**
@@ -186,7 +211,7 @@ public class Computer implements Runnable {
 	 *            Second register (VY)
 	 */
 	private void opcode_8XY3(Register x, Register y) {
-		x.setValue((short) (x.getValue() ^ y.getValue()));
+		x.setValue(x.getValue() ^ y.getValue());
 	}
 
 	/**
@@ -199,8 +224,8 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_8XY4(Register x, Register y) {
 		int val = x.getValue() + y.getValue();
-		short vf = (short) (val > 0xff ? 1 : 0);
-		x.setValue((short) val & 0xff1); // & 256 for modulous
+		int vf = (val > 0xff ? 1 : 0);
+		x.setValue(val & 0xff); // & 256 for modulous
 		// Sets to 1 if there has been a carry
 		registers[0xF].setValue(vf);
 	}
@@ -214,9 +239,9 @@ public class Computer implements Runnable {
 	 *            Second register
 	 */
 	private void opcode_8XY5(Register x, Register y) {
-		registers[0xF].setValue(y.getValue() <= x.getValue() ? 0x1 : 0x0);
+		registers[0xF].setValue(x.getValue() > y.getValue() ? 0x1 : 0x0);
 		int val = x.getValue() - y.getValue();
-		x.setValue((short) val & 0xff);
+		x.setValue(val & 0xff);
 	}
 
 	/**
@@ -243,9 +268,9 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_8XY7(Register x, Register y) {
 		int val = y.getValue() - x.getValue();
-		x.setValue((short) val & 0xff);
+		x.setValue(val & 0xff);
 		// Sets to 1 if there has been a carry
-		short vf = (short) (val < 0 ? 1 : 0);
+		int vf = y.getValue() > x.getValue() ? 0x1 : 0x0;
 		registers[0xF].setValue(vf);
 	}
 
@@ -258,7 +283,8 @@ public class Computer implements Runnable {
 	private void opcode_8XYE(Register x) {
 		int value = x.getValue();
 		registers[0xF].setValue((value & 0xF0) >> 4);
-		value = (short) (value << 1);
+		value = (value << 1);
+		x.setValue(value);
 	}
 
 	/**
@@ -270,7 +296,7 @@ public class Computer implements Runnable {
 	 *            The second register (VY)
 	 */
 	private void opcode_9XY0(Register x, Register y) {
-		if (x.getValue() == y.getValue()) {
+		if (x.getValue() != y.getValue()) {
 			programCounter += 2;
 		}
 	}
@@ -292,7 +318,7 @@ public class Computer implements Runnable {
 	 *            Address to be added to the value of V0
 	 */
 	private void opcode_BNNN(Address address) {
-		this.programCounter = (short) (registers[0].getValue() + address.getAddress());
+		this.programCounter = (registers[0].getValue() + address.getAddress()) - 2;
 	}
 
 	/**
@@ -304,8 +330,8 @@ public class Computer implements Runnable {
 	 * @param val
 	 *            The value to be (&) with the random number
 	 */
-	private void opcode_CXNN(Register x, short val) {
-		short value = (short) (val & rand.nextInt(256));
+	private void opcode_CXNN(Register x, int val) {
+		int value = (val & rand.nextInt(256));
 		x.setValue(value);
 	}
 
@@ -320,7 +346,7 @@ public class Computer implements Runnable {
 	 * @param height
 	 *            Height of sprite
 	 */
-	private void opcode_DXYN(Register x, Register y, short height) {
+	private void opcode_DXYN(Register x, Register y, int height) {
 		int xLoc = x.getValue();
 		int yLoc = y.getValue();
 		boolean turnedOff = false;
@@ -378,9 +404,8 @@ public class Computer implements Runnable {
 	 *            Register VX
 	 */
 	private void opcode_FX0A(Register x) {
-		short value = (short) keyboard.waitForKeyPress();
+		int value = keyboard.waitForKeyPress();
 		x.setValue(value);
-		;
 	}
 
 	/**
@@ -410,7 +435,7 @@ public class Computer implements Runnable {
 	 *            The VX register
 	 */
 	private void opcode_FX1E(Register x) {
-		short value = (short) (i.getValue() + x.getValue());
+		int value = (i.getValue() + x.getValue());
 		i.setValue(value);
 	}
 
@@ -422,10 +447,7 @@ public class Computer implements Runnable {
 	 *            VX
 	 */
 	private void opcode_FX29(Register x) {
-		int val = x.getValue();
-		if (val < 0 || val > 0xF) {
-			// Handle OOB requests
-		}
+		int val = x.getValue() & 0xf; // If value isnt 0-f force it to be
 		i.setValue(val * 5); // 5 entries for the rows and an empty.
 	}
 
@@ -439,9 +461,9 @@ public class Computer implements Runnable {
 	private void opcode_FX33(Register x) {
 		Address addr = new Address(i.getValue());
 		int value = x.getValue();
-		byte hundreds = (byte) (value / 100);
-		byte tens = (byte) ((value - hundreds) / 10);
-		byte ones = (byte) ((value - hundreds - tens));
+		int hundreds = (value / 100);
+		int tens = ((value - hundreds) / 10);
+		int ones = ((value - hundreds - tens));
 		ram.setMemory(addr, hundreds);
 		addr.addToAddress(1);
 		ram.setMemory(addr, tens);
@@ -458,12 +480,13 @@ public class Computer implements Runnable {
 	private void opcode_FX55(Register x) {
 		// Stores V0 to VX in memory starting at address I.
 		Address address = new Address(i.getValue());
-		byte value;
+		int value;
 		for (int j = 0; j < registers.length && registers[j] != x; j++) {
-			value = (byte) registers[j].getValue();
+			value = registers[j].getValue();
 			ram.setMemory(address, value);
 			address.addToAddress((short) 0x1);
 		}
+		ram.setMemory(address, x.getValue());
 	}
 
 	/**
@@ -480,6 +503,7 @@ public class Computer implements Runnable {
 			registers[j].setValue(value);
 			address.addToAddress((short) 0x1);
 		}
+		x.setValue(ram.getMemory(address));
 	}
 
 	public void emulationCycle() {
@@ -493,13 +517,16 @@ public class Computer implements Runnable {
 		Address loc = new Address(programCounter);
 		int opcode = ram.getMemory(loc);
 		loc.addToAddress(1);
-		opcode = ((opcode << 8) | ram.getMemory(loc)); // Full opcode
-	//	System.out.println("Evaluating Opcode: 0x" + Integer.toHexString(opcode));
+		opcode = createOpcode(opcode, ram.getMemory(loc));
+		// System.out.println("Evaluating Opcode: 0x" +
+		// Integer.toHexString(opcode));
 		evaluateOpcode(opcode);
-	//	System.out.println("Evaluated Opcode: 0x" + Integer.toHexString(opcode));
+		// System.out.println("Evaluated Opcode: 0x" +
+		// Integer.toHexString(opcode));
 	}
 
 	public void evaluateOpcode(int opcode) {
+		System.out.println("Evaluating " + Integer.toHexString(opcode));
 		opcode &= 0xffff;
 		Register x, y;
 		short value;
@@ -575,14 +602,16 @@ public class Computer implements Runnable {
 						opcode_EXA1(x);
 						break;
 					default:
-						System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode));
+						System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode) + " Found at Program location: "
+								+ Integer.toHexString(programCounter - startPlace));
 				}
 				break;
 			case 0xF:
 				executeFXNNOpcodes(opcode);
 				break;
 			default:
-				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode));
+				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode) + " Found at Program location: "
+						+ Integer.toHexString(programCounter - startPlace));
 		}
 	}
 
@@ -595,7 +624,8 @@ public class Computer implements Runnable {
 				opcode_00EE();
 				break;
 			default:
-				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode));
+				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode) + " Found at Program location: "
+						+ Integer.toHexString(programCounter - startPlace));
 		}
 	}
 
@@ -631,7 +661,8 @@ public class Computer implements Runnable {
 				opcode_8XYE(x);
 				break;
 			default:
-				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode));
+				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode) + " Found at Program location: "
+						+ Integer.toHexString(programCounter - startPlace));
 		}
 	}
 
@@ -666,7 +697,9 @@ public class Computer implements Runnable {
 				opcode_FX65(x);
 				break;
 			default:
-				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode));
+				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode) + " Found at Program location: "
+						+ Integer.toHexString(programCounter - startPlace));
+
 		}
 	}
 
@@ -674,30 +707,84 @@ public class Computer implements Runnable {
 		return registers[j];
 	}
 
+	public void loadRom() {
+		JFileChooser chooser = new JFileChooser();
+		chooser.setCurrentDirectory(new File("."));
+		int returnVal = chooser.showOpenDialog(null);
+
+		if (returnVal == JFileChooser.APPROVE_OPTION) {
+			try {
+				Rom rom = new Rom(chooser.getSelectedFile().getAbsolutePath());
+				loadRom(rom);
+			} catch (DataFormatException | IOException e) {
+				e.printStackTrace();
+			}
+		}
+	}
+
 	public void loadRom(Rom rom) {
+		ejectRom();
 		int[] data = rom.getRom();
 		romLength = data.length;
-		Address address = new Address((short) 0x200);
+		Address address = new Address(0x200);
 		for (int i = 0; i < data.length; i++) {
 			ram.setMemory(address, data[i]);
 			address.addToAddress(1);
 		}
+		program = new Thread(this);
+		playRom();
+	}
 
+	public void playRom() {
+		display.cls();
+		keepRunning = true;
+		program.start();
+	}
+
+	private void ejectRom() {
+
+		if (program != null) {
+			keepRunning = false;
+			try {
+				program.join(100);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		resetComputerState();
 	}
 
 	@Override
 	public void run() {
-		for (; programCounter - startPlace <= romLength;) {
+		System.out.println("Rom Length: " + Integer.toHexString(romLength));
+		while (keepRunning) {
 			time = System.currentTimeMillis();
 			emulationCycle();
 			while (System.currentTimeMillis() - time < 1000.0 / 60.0)
 				;
 		}
+//		System.out.println(Integer.toHexString(programCounter - startPlace));
 
 	}
 
 	public Display getDisplay() {
 		return display;
+	}
+
+	private int createOpcode(int msb, int lsb) {
+		int opcode = msb;
+		opcode <<= 8;
+		opcode |= lsb;
+		return opcode;
+	}
+
+	/**
+	 * Gets the keyboard object for this computer object
+	 * 
+	 * @return The keyboard
+	 */
+	public Keyboard getKeyboard() {
+		return keyboard;
 	}
 
 }

@@ -20,7 +20,7 @@ public class Display extends JComponent {
 		screen = new boolean[width * height];
 		this.width = width;
 		this.height = height;
-		setPreferredSize(new Dimension(width*10, height*10));
+		setPreferredSize(new Dimension(width * 10, height * 10));
 	}
 
 	public void cls() {
@@ -45,12 +45,12 @@ public class Display extends JComponent {
 	 *         this sprite.
 	 */
 	public boolean draw(int xLoc, int yLoc, int value) {
-		
-		String val = String.format("%8s", Integer.toBinaryString(value&0xFF)).replace(" ", "0");
+
+		String val = String.format("%8s", Integer.toBinaryString(value & 0xFF)).replace(" ", "0");
 		boolean turnedOff = false;
 		for (int i = 0; i < val.length(); i++) {
 			if (val.charAt(i) == '1') {
-				int location = ((xLoc + i)) + ((yLoc * width));
+				int location = ((xLoc + i) % width) + (((yLoc % height) * width));
 				if (screen[location]) {
 					turnedOff = true;
 				}
