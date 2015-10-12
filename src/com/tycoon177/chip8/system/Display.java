@@ -94,4 +94,48 @@ public class Display extends JComponent {
 		}
 	}
 
+	public void scrollDown(int amount) {
+		boolean[] nScreen = new boolean[screen.length];
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				int oldLoc = (x % width) + ((y % height) * width);
+				int nLoc = (x % width) + ((y + amount) % height) * width;
+				nScreen[nLoc] = screen[oldLoc];
+			}
+		}
+		System.arraycopy(nScreen, 0, screen, 0, screen.length);
+		repaint();
+	}
+
+	public void scrollRight(int amount) {
+		boolean[] nScreen = new boolean[screen.length];
+		for (int y = 0; y < height; y++) {
+			for (int x = 0; x < width; x++) {
+				int oldLoc = (x % width) + ((y % height) * width);
+				int nLoc = ((x + amount) % width) + (y % height) * width;
+				nScreen[nLoc] = screen[oldLoc];
+			}
+		}
+		System.arraycopy(nScreen, 0, screen, 0, screen.length);
+		repaint();
+	}
+
+	public void scrollLeft(int amount) {
+		scrollRight(width - amount);
+	}
+
+	public void setLow() {
+		width = 64;
+		height = 32;
+		screen = new boolean[width*height];
+	//	setPreferredSize(new Dimension(width, height));
+	}
+
+	public void setHigh() {
+		width = 128;
+		height = 64;
+		screen = new boolean[width*height];
+		//setPreferredSize(new Dimension(width, height));
+	}
+
 }

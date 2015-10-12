@@ -62,6 +62,16 @@ public class Computer implements Runnable {
 	}
 
 	/**
+	 * Scrolls the screen down n lines
+	 * 
+	 * @param amount
+	 *            amount to scroll down.
+	 */
+	private void opcode_00CN(int amount) {
+		display.scrollDown(amount);
+	}
+
+	/**
 	 * Clears the screen
 	 */
 	private void opcode_00E0() {
@@ -74,6 +84,34 @@ public class Computer implements Runnable {
 	 */
 	private void opcode_00EE() {
 		programCounter = returnStack.pop().getAddress() - 2;
+	}
+
+	/**
+	 * Scrolls the screen right 4 pixels
+	 */
+	private void opcode_00FB() {
+		display.scrollRight(4);
+	}
+
+	/**
+	 * Scrolls the screen left 4 pixels
+	 */
+	private void opcode_00FC() {
+		display.scrollLeft(4);
+	}
+
+	/**
+	 * Disables extended mode and goes to (64x32)
+	 */
+	private void opcode_00FE() {
+		display.setLow();
+	}
+
+	/**
+	 * Sets the display to extended mode (128x64)
+	 */
+	private void opcode_00FF() {
+		display.setHigh();
 	}
 
 	/**
@@ -364,6 +402,37 @@ public class Computer implements Runnable {
 	}
 
 	/**
+	 * Draws extended sprite at screen location VX,VY. These will always be
+	 * 16x16
+	 * 
+	 * @param x
+	 *            The register with location x
+	 * @param y
+	 *            The register with location y
+	 */
+	private void opcode_DXY0(Register x, Register y) {
+		int xLoc = x.getValue();
+		int yLoc = y.getValue();
+		boolean turnedOff = false;
+		int value;
+		Address address = new Address(i.getValue());
+		registers[0xF].setValue((short) 0);
+		for (int i = 0; i < 16; i++) {
+			value = ram.getMemory(address);
+			address.addToAddress(1);
+			turnedOff |= display.draw(xLoc, yLoc + i, value);
+			// Draw the left half of the sprite
+			value = ram.getMemory(address);
+			address.addToAddress(1);
+			turnedOff |= display.draw(xLoc + 8, yLoc + i, value);
+			// Draw the right half of the sprite
+		}
+		if (turnedOff) {
+			registers[0xF].setValue(1);
+		}
+	}
+
+	/**
 	 * Skips the next instruction if the key stored in VX is pressed.
 	 * 
 	 * @param x
@@ -449,6 +518,19 @@ public class Computer implements Runnable {
 	private void opcode_FX29(Register x) {
 		int val = x.getValue() & 0xf; // If value isnt 0-f force it to be
 		i.setValue(val * 5); // 5 entries for the rows and an empty.
+	}
+
+	/**
+	 * point I to the sprite for hexadecimal character in VX (10 byte high
+	 * sprites)
+	 * 
+	 * @param x
+	 *            VX, sprite
+	 */
+	private void opcode_FX30(Register x) {
+		// TODO
+		int value = x.getValue() & 0xf;
+		i.setValue(0x50 + value * 10);
 	}
 
 	/**
@@ -590,7 +672,11 @@ public class Computer implements Runnable {
 				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 				y = getRegister((byte) ((opcode & 0x00f0) >> 4));
 				value = (short) (opcode & 0xf);
-				opcode_DXYN(x, y, value);
+				if (value != 0) {
+					opcode_DXYN(x, y, value);
+				} else {
+					opcode_DXY0(x, y);
+				}
 				break;
 			case 0xE:
 				x = getRegister((byte) ((opcode & 0x0f00) >> 8));
@@ -623,9 +709,25 @@ public class Computer implements Runnable {
 			case 0x00EE:
 				opcode_00EE();
 				break;
+			case 0x00FB:
+				opcode_00FB();
+				break;
+			case 0x00FC:
+				opcode_00FC();
+				break;
+			case 0x00FE:
+				opcode_00FE();
+				break;
+			case 0x00FF:
+				opcode_00FF();
+				break;
 			default:
-				System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode) + " Found at Program location: "
-						+ Integer.toHexString(programCounter - startPlace));
+				if ((opcode & 0xF0) == 0xC0) {
+					opcode_00CN(opcode & 0xF);
+				} else {
+					System.out.println("UNKNOWN OPCODE: 0x" + Integer.toHexString(opcode) + " Found at Program location: "
+							+ Integer.toHexString(programCounter - startPlace));
+				}
 		}
 	}
 
@@ -686,6 +788,9 @@ public class Computer implements Runnable {
 				break;
 			case 0x29:
 				opcode_FX29(x);
+				break;
+			case 0x30:
+				opcode_FX30(x);
 				break;
 			case 0x33:
 				opcode_FX33(x);
@@ -759,7 +864,7 @@ public class Computer implements Runnable {
 		while (keepRunning) {
 			time = System.currentTimeMillis();
 			emulationCycle();
-			while (System.currentTimeMillis() - time < 1000.0/200)
+			while (System.currentTimeMillis() - time < 1000.0 / 200)
 				;
 		}
 		// System.out.println(Integer.toHexString(programCounter - startPlace));
