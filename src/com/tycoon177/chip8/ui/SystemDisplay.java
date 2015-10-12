@@ -29,6 +29,7 @@ public class SystemDisplay extends JFrame implements KeyListener {
 		setContentPane(panel);
 		getContentPane().add(screen, BorderLayout.CENTER);
 		getContentPane().add(new KeyboardPanel(computer.getKeyboard()), BorderLayout.SOUTH);
+		getContentPane().add(new DebugPanel(computer), BorderLayout.NORTH);
 		makeMenuBar();
 		pack();
 		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);

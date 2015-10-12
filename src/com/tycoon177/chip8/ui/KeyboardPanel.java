@@ -30,7 +30,7 @@ public class KeyboardPanel extends JPanel {
 					keyboard.setKeyPressed(j, e.getStateChange() == ItemEvent.SELECTED);
 				}
 			});
-
+			buttons[i].setFocusable(false);
 		}
 		add(buttons[1]);
 		add(buttons[2]);

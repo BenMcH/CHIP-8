@@ -93,7 +93,7 @@ public class Computer implements Runnable {
 	 *            The address of the subroutine.
 	 */
 	private void opcode_2NNN(Address address) {
-		returnStack.push(new Address(programCounter));
+		returnStack.push(new Address(programCounter + 2));
 		opcode_1NNN(address);
 	}
 
@@ -732,7 +732,6 @@ public class Computer implements Runnable {
 			address.addToAddress(1);
 		}
 		program = new Thread(this);
-		playRom();
 	}
 
 	public void playRom() {
@@ -760,10 +759,10 @@ public class Computer implements Runnable {
 		while (keepRunning) {
 			time = System.currentTimeMillis();
 			emulationCycle();
-			while (System.currentTimeMillis() - time < 1000.0 / 60.0)
+			while (System.currentTimeMillis() - time < 1000.0/200)
 				;
 		}
-//		System.out.println(Integer.toHexString(programCounter - startPlace));
+		// System.out.println(Integer.toHexString(programCounter - startPlace));
 
 	}
 

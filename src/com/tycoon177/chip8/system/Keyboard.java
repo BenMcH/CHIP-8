@@ -67,7 +67,9 @@ public class Keyboard {
 	}
 
 	public void reset() {
-		Arrays.fill(keys, false);
+		for (int i = 0; i < keys.length; i++) {
+			keys[i] = false;
+		}
 	}
 
 }
