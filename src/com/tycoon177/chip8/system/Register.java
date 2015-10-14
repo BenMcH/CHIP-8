@@ -1,5 +1,11 @@
 package com.tycoon177.chip8.system;
 
+/**
+ * Represents either an 8 bit or 16 bit register for storing values
+ * 
+ * @author Benjamin McHone
+ *
+ */
 public class Register {
 	private int numBytes;
 	private int value;
@@ -41,7 +47,6 @@ public class Register {
 		return value & 0xFFFF;
 	}
 
-
 	/**
 	 * Sets the value within the register (Will be cast to short)
 	 * 
@@ -51,10 +56,15 @@ public class Register {
 	public void setValue(int i) {
 		this.value = i & 0xFFFF;
 	}
-	
+
+	/**
+	 * Gets the string representation of the register
+	 * 
+	 * @return The Register name with the value
+	 */
 	@Override
-	public String toString(){
-		return name + ":" + value;
+	public String toString() {
+		return "Register " + name + ": " + value;
 	}
 
 }

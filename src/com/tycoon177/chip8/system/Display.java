@@ -7,15 +7,26 @@ import java.awt.Graphics2D;
 
 import javax.swing.JComponent;
 
+/**
+ * Represents the chip8 display, a 64x32 monochrome screen
+ * 
+ * @author Benjamin McHone
+ *
+ */
 public class Display extends JComponent {
-	/**
-	 * 
-	 */
 	private static final long serialVersionUID = 2590723775104624335L;
 	// Monochrome screen can be represented by booleans.
 	private boolean[] screen;
 	private int width, height;
 
+	/**
+	 * Creates a screen of a set size
+	 * 
+	 * @param width
+	 *            The width of the display
+	 * @param height
+	 *            The height of the display
+	 */
 	public Display(int width, int height) {
 		screen = new boolean[width * height];
 		this.width = width;
@@ -23,10 +34,18 @@ public class Display extends JComponent {
 		setPreferredSize(new Dimension(width * 10, height * 10));
 	}
 
+	/**
+	 * Clears the screen
+	 */
 	public void cls() {
 		fill(false);
 	}
 
+	/**
+	 * Gets the screen as an array of booleans
+	 * 
+	 * @return The screen
+	 */
 	public boolean[] getScreen() {
 		return screen;
 	}
@@ -61,6 +80,9 @@ public class Display extends JComponent {
 		return turnedOff;
 	}
 
+	/**
+	 * Sets the size of the screen
+	 */
 	@Override
 	public void setSize(int width, int height) {
 		this.width = width;
@@ -70,6 +92,12 @@ public class Display extends JComponent {
 		screen = nScreen;
 	}
 
+	/**
+	 * Fills the screen with the either on or off pixels
+	 * 
+	 * @param value
+	 *            What to fill the screen with
+	 */
 	public void fill(boolean value) {
 		for (int i = 0; i < screen.length; i++) {
 			screen[i] = value;
@@ -94,6 +122,12 @@ public class Display extends JComponent {
 		}
 	}
 
+	/**
+	 * Scrolls the screen down by amount lines
+	 * 
+	 * @param amount
+	 *            Amount to scroll
+	 */
 	public void scrollDown(int amount) {
 		boolean[] nScreen = new boolean[screen.length];
 		for (int y = 0; y < height; y++) {
@@ -107,6 +141,12 @@ public class Display extends JComponent {
 		repaint();
 	}
 
+	/**
+	 * Scrolls the screen to the right
+	 * 
+	 * @param amount
+	 *            Amount of lines to scroll
+	 */
 	public void scrollRight(int amount) {
 		boolean[] nScreen = new boolean[screen.length];
 		for (int y = 0; y < height; y++) {
@@ -120,22 +160,34 @@ public class Display extends JComponent {
 		repaint();
 	}
 
+	/**
+	 * Scrolls the screen to the left by using the scroll left function
+	 * 
+	 * @param amount
+	 *            amount of lines to scroll to the left
+	 */
 	public void scrollLeft(int amount) {
 		scrollRight(width - amount);
 	}
 
+	/**
+	 * Sets the screen to the standard chip8 screen (64x32)
+	 */
 	public void setLow() {
 		width = 64;
 		height = 32;
-		screen = new boolean[width*height];
-	//	setPreferredSize(new Dimension(width, height));
+		screen = new boolean[width * height];
+		// setPreferredSize(new Dimension(width, height));
 	}
 
+	/**
+	 * Sets the screen to the Super Chip 8 screen. (128x64)
+	 */
 	public void setHigh() {
 		width = 128;
 		height = 64;
-		screen = new boolean[width*height];
-		//setPreferredSize(new Dimension(width, height));
+		screen = new boolean[width * height];
+		// setPreferredSize(new Dimension(width, height));
 	}
 
 }

@@ -8,6 +8,12 @@ import java.util.zip.DataFormatException;
 
 import javax.swing.JFileChooser;
 
+/**
+ * The chip8 computer
+ * 
+ * @author Benjamin McHone
+ *
+ */
 public class Computer implements Runnable {
 	private Display display;
 	private Keyboard keyboard;
@@ -43,6 +49,9 @@ public class Computer implements Runnable {
 		resetComputerState();
 	}
 
+	/**
+	 * Resets all variables to their original state
+	 */
 	private void resetComputerState() {
 		programCounter = 0x200;// Program execution starts at 0x200
 		startPlace = 0x200;
@@ -57,7 +66,7 @@ public class Computer implements Runnable {
 		}
 		keyboard.reset();
 		display.cls();
-		ram.clearMemory();
+		ram.resetMemory();
 
 	}
 
@@ -419,11 +428,13 @@ public class Computer implements Runnable {
 		registers[0xF].setValue((short) 0);
 		for (int i = 0; i < 16; i++) {
 			value = ram.getMemory(address);
+			System.out.println(Integer.toHexString(value));
 			address.addToAddress(1);
 			turnedOff |= display.draw(xLoc, yLoc + i, value);
 			// Draw the left half of the sprite
 			value = ram.getMemory(address);
 			address.addToAddress(1);
+			System.out.println(Integer.toHexString(value));
 			turnedOff |= display.draw(xLoc + 8, yLoc + i, value);
 			// Draw the right half of the sprite
 		}
@@ -530,7 +541,11 @@ public class Computer implements Runnable {
 	private void opcode_FX30(Register x) {
 		// TODO
 		int value = x.getValue() & 0xf;
-		i.setValue(0x50 + value * 10);
+		value *= 10;
+		value += 0x50;
+		System.out.println(value + " fx30");
+
+		i.setValue(value);
 	}
 
 	/**
@@ -588,6 +603,9 @@ public class Computer implements Runnable {
 		x.setValue(ram.getMemory(address));
 	}
 
+	/**
+	 * Emulates one cpu cycle
+	 */
 	public void emulationCycle() {
 		evaluateOpcode();
 		sound.updateTimer();
@@ -595,6 +613,9 @@ public class Computer implements Runnable {
 		programCounter += 2;
 	}
 
+	/**
+	 * Gets the next opcode and evaluates it
+	 */
 	private void evaluateOpcode() {
 		Address loc = new Address(programCounter);
 		int opcode = ram.getMemory(loc);
@@ -607,6 +628,12 @@ public class Computer implements Runnable {
 		// Integer.toHexString(opcode));
 	}
 
+	/**
+	 * Executes opcodes
+	 * 
+	 * @param opcode
+	 *            The opcode to evaluate
+	 */
 	public void evaluateOpcode(int opcode) {
 		System.out.println("Evaluating " + Integer.toHexString(opcode));
 		opcode &= 0xffff;
@@ -701,6 +728,12 @@ public class Computer implements Runnable {
 		}
 	}
 
+	/**
+	 * Executes the opcodes that fit the format 0NNN
+	 * 
+	 * @param opcode
+	 *            The opcode to evaluate
+	 */
 	private void execute0NNNOpcodes(int opcode) {
 		switch (opcode & 0xFF) {
 			case 0x00E0:
@@ -731,6 +764,12 @@ public class Computer implements Runnable {
 		}
 	}
 
+	/**
+	 * Executes the opcodes that fit the format DXYN
+	 * 
+	 * @param opcode
+	 *            The opcode to evaluate
+	 */
 	private void execute8XYNOpcodes(int opcode) {
 		Register x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 		Register y = getRegister((byte) ((opcode & 0x00f0) >> 4));
@@ -768,6 +807,12 @@ public class Computer implements Runnable {
 		}
 	}
 
+	/**
+	 * Executes the opcodes that fit the format FXNN
+	 * 
+	 * @param opcode
+	 *            The opcode to evaluate
+	 */
 	private void executeFXNNOpcodes(int opcode) {
 		Register x = getRegister((byte) ((opcode & 0x0f00) >> 8));
 		switch (opcode & 0xFF) {
@@ -808,10 +853,9 @@ public class Computer implements Runnable {
 		}
 	}
 
-	public Register getRegister(int j) {
-		return registers[j];
-	}
-
+	/**
+	 * Opens a JFileChooser so that you can choose the rom file graphically
+	 */
 	public void loadRom() {
 		JFileChooser chooser = new JFileChooser();
 		chooser.setCurrentDirectory(new File("."));
@@ -827,8 +871,14 @@ public class Computer implements Runnable {
 		}
 	}
 
+	/**
+	 * Loads the rom from a Rom object
+	 * 
+	 * @param rom
+	 *            The rom to load
+	 */
 	public void loadRom(Rom rom) {
-		ejectRom();
+		stop();
 		int[] data = rom.getRom();
 		romLength = data.length;
 		Address address = new Address(0x200);
@@ -839,13 +889,57 @@ public class Computer implements Runnable {
 		program = new Thread(this);
 	}
 
+	/**
+	 * Starts running the game code if it is not running
+	 */
 	public void playRom() {
-		display.cls();
-		keepRunning = true;
-		program.start();
+		if (program == null) {
+			System.out.println("Load a rom into the chip 8");
+			return;
+		}
+		if (!program.isAlive()) {
+			display.cls();
+			keepRunning = true;
+			program.start();
+		}
 	}
 
-	private void ejectRom() {
+	/**
+	 * Pauses the running program
+	 */
+	public void pause() {
+		if (program == null) {
+			return;
+		}
+		if (program.isAlive()) {
+			keepRunning = false;
+			try {
+				program.join(10);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+		}
+		keepRunning = true;
+	}
+
+	/**
+	 * Resumes running from the paused state
+	 */
+	public void resume() {
+		if (program == null) {
+			System.out.println("Load a rom into the chip 8");
+			return;
+		}
+		if (!program.isAlive() && keepRunning == true) {
+			program = new Thread(this);
+			program.start();
+		}
+	}
+
+	/**
+	 * Removes the current rom code from the system and restarts it.
+	 */
+	public void stop() {
 
 		if (program != null) {
 			keepRunning = false;
@@ -858,23 +952,40 @@ public class Computer implements Runnable {
 		resetComputerState();
 	}
 
+	/**
+	 * Runs the loaded rom at 1000 commands/second
+	 */
 	@Override
 	public void run() {
 		System.out.println("Rom Length: " + Integer.toHexString(romLength));
 		while (keepRunning) {
-			time = System.currentTimeMillis();
+			time = System.nanoTime();
 			emulationCycle();
-			while (System.currentTimeMillis() - time < 1000.0 / 200)
+			long end = time + 1000000000L / 1000L;
+			while (System.nanoTime() < end)
+				// while (System.currentTimeMillis() - time < 1)
 				;
 		}
-		// System.out.println(Integer.toHexString(programCounter - startPlace));
-
 	}
 
+	/**
+	 * Gets the screen of the computer
+	 * 
+	 * @return The screen
+	 */
 	public Display getDisplay() {
 		return display;
 	}
 
+	/**
+	 * Creates a 2 byte opcode
+	 * 
+	 * @param msb
+	 *            The most significant byte.
+	 * @param lsb
+	 *            The least significant byte
+	 * @return The opcode
+	 */
 	private int createOpcode(int msb, int lsb) {
 		int opcode = msb;
 		opcode <<= 8;
@@ -889,6 +1000,17 @@ public class Computer implements Runnable {
 	 */
 	public Keyboard getKeyboard() {
 		return keyboard;
+	}
+
+	/**
+	 * Gets the register by number
+	 * 
+	 * @param j
+	 *            The index of the register
+	 * @return The register at index j
+	 */
+	public Register getRegister(int j) {
+		return registers[j];
 	}
 
 }

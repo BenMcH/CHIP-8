@@ -9,6 +9,11 @@ import com.tycoon177.chip8.system.Computer;
 import com.tycoon177.chip8.system.Rom;
 import com.tycoon177.chip8.ui.SystemDisplay;
 
+/**
+ * Manages the launching of the program
+ * @author Benjamin McHone
+ *
+ */
 public class Launcher {
 
 	public static void main(String[] args) throws DataFormatException, IOException {

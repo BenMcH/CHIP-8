@@ -1,21 +1,32 @@
 package com.tycoon177.chip8.system;
 
 import java.awt.event.KeyEvent;
-import java.util.Arrays;
-import java.util.Hashtable;
+import java.util.HashMap;
 
+/**
+ * Stores the states for the 16 key keypad
+ * 
+ * @author Benjamin McHone
+ *
+ */
 public class Keyboard {
 	private boolean[] keys;
 	private volatile boolean keyPressed;
 	private int lastKeyPressed;
-	private Hashtable<Integer, Integer> keyboardLookup;
+	private HashMap<Integer, Integer> keyboardLookup;
 
+	/**
+	 * Constructs the keyboard object
+	 */
 	public Keyboard() {
 		keys = new boolean[16];
-		keyboardLookup = new Hashtable<>();
+		keyboardLookup = new HashMap<>();
 		setupKeyboardLookup();
 	}
 
+	/**
+	 * Sets up the lookup map.
+	 */
 	private void setupKeyboardLookup() {
 		keyboardLookup.put(KeyEvent.VK_1, 0x1);
 		keyboardLookup.put(KeyEvent.VK_2, 0x2);
@@ -35,10 +46,25 @@ public class Keyboard {
 		keyboardLookup.put(KeyEvent.VK_V, 0xF);
 	}
 
+	/**
+	 * Returns whether or not the key at index is pressed
+	 * 
+	 * @param index
+	 *            The key pressed
+	 * @return Whether or not it is pressed
+	 */
 	public boolean getKeyPressed(int index) {
 		return keys[index];
 	}
 
+	/**
+	 * Sets the state of a key press
+	 * 
+	 * @param index
+	 *            key to set
+	 * @param state
+	 *            Whether it is pressed
+	 */
 	public void setKeyPressed(int index, boolean state) {
 		if (state) {
 			keyPressed = true;
@@ -47,6 +73,11 @@ public class Keyboard {
 		keys[index] = state;
 	}
 
+	/**
+	 * Pauses execution until a key is pressed
+	 * 
+	 * @return Which key was pressed
+	 */
 	public int waitForKeyPress() {
 		keyPressed = false;
 		while (!keyPressed) {
@@ -58,6 +89,13 @@ public class Keyboard {
 		return lastKeyPressed;
 	}
 
+	/**
+	 * Gets the key mapping of a normal keyboard to the chip8 keyboard
+	 * 
+	 * @param keycode
+	 *            The keyboard keycode
+	 * @return The chip8 keyboard equivalent
+	 */
 	public int standardKeyboardToHex(int keycode) {
 		if (keyboardLookup.containsKey((Integer) keycode)) {
 			return keyboardLookup.get(keycode);
@@ -66,6 +104,9 @@ public class Keyboard {
 		return -1;
 	}
 
+	/**
+	 * Sets all keys to not pressed.
+	 */
 	public void reset() {
 		for (int i = 0; i < keys.length; i++) {
 			keys[i] = false;

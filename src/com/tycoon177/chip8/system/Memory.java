@@ -3,6 +3,12 @@ package com.tycoon177.chip8.system;
 import java.io.FileInputStream;
 import java.io.IOException;
 
+/**
+ * Stores the Ram of the chip8
+ * 
+ * @author Benjamin McHone
+ *
+ */
 public class Memory {
 	private int[] memory;
 
@@ -51,6 +57,11 @@ public class Memory {
 		return memory[address.getAddress()] & 0xff;
 	}
 
+	/**
+	 * Gets the memory stored
+	 * 
+	 * @return The memory stored
+	 */
 	public int[] getMemory() {
 		return memory;
 	}
@@ -71,9 +82,13 @@ public class Memory {
 		for (int i = 0; i < rom.length; i++) {
 			memory[i] = rom[i];
 		}
+
 	}
 
-	public void clearMemory() {
+	/**
+	 * Resets the memory to the initial state and reloads the system.
+	 */
+	public void resetMemory() {
 		for (int i = 0; i < memory.length; i++) {
 			memory[i] = 0;
 		}
